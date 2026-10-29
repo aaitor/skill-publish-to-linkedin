@@ -32,3 +32,123 @@ assert build_post("u", "@[Acme](urn:li:organization:1)", raw=True)["commentary"]
 assert build_post("u", "t", image_urn="urn:li:image:1", alt="pic")["content"] == {"media": {"id": "urn:li:image:1", "altText": "pic"}}
 assert build_post("u", "t", image_urn="urn:li:image:1")["content"] == {"media": {"id": "urn:li:image:1"}}
 print("ok")
+
+# Exercise real CLI parsing and commands with only the network/token boundaries mocked.
+import contextlib
+import io
+import json
+import sys
+from unittest.mock import patch
+import linkedin
+
+TOKEN = {"access_token": "test-token", "person_urn": "urn:li:person:test", "name": "Test"}
+URN = "urn:li:share:123"
+LINKS = "Read (more): https://example.com/a_b?q=x&v=2#section"
+
+
+def cli(*args, responses=None):
+    output = io.StringIO()
+    with patch.object(sys, "argv", ["linkedin.py", *args]), \
+            patch.object(linkedin, "load_token", return_value=TOKEN), \
+            patch.object(linkedin, "rest", side_effect=responses) as api, \
+            patch.object(linkedin, "upload_image", return_value="urn:li:image:1") as upload, \
+            contextlib.redirect_stdout(output):
+        linkedin.main()
+    return output.getvalue(), api, upload
+
+
+preview, api, upload = cli("post", "--text", "Update", "--first-comment", LINKS,
+                           "--image", __file__, "--dry-run")
+assert json.loads(preview.split("\nFirst comment", 1)[0])["commentary"] == "Update"
+assert LINKS in preview and "<created post URN>" in preview
+api.assert_not_called()
+upload.assert_not_called()
+
+for target in (URN, "urn:li:ugcPost:123", f"https://www.linkedin.com/feed/update/{URN}/"):
+    preview, api, _ = cli("comment", target, "--text", LINKS, "--dry-run")
+    body = json.loads(preview.split("\n\n---", 1)[0])
+    assert body["message"]["text"] == LINKS
+    assert body["actor"] == TOKEN["person_urn"]
+    api.assert_not_called()
+
+result, api, _ = cli("post", "--text", "Update", "--first-comment", LINKS,
+                     responses=[({"x-restli-id": URN}, None), ({"x-restli-id": "456"}, {})])
+assert api.call_count == 2
+assert api.call_args_list[0].args[1] == "posts"
+assert api.call_args_list[1].args == (
+    "POST", "socialActions/urn%3Ali%3Ashare%3A123/comments", "test-token",
+    {"actor": TOKEN["person_urn"], "object": URN, "message": {"text": LINKS}})
+assert "Comment published" in result and URN in result
+
+_, api, _ = cli("post", "--text", "Update", responses=[({"x-restli-id": URN}, None)])
+assert api.call_count == 1
+
+with tempfile.TemporaryDirectory() as tmp:
+    file = Path(tmp) / "comment.txt"
+    file.write_text(LINKS)
+    _, api, _ = cli("comment", URN, "--file", str(file), responses=[({}, {})])
+    assert api.call_args.args[3]["message"]["text"] == LINKS
+    _, api, _ = cli("post", "--text", "Update", "--first-comment-file", str(file), "--dry-run")
+    api.assert_not_called()
+
+with patch.object(sys, "stdin", io.StringIO(LINKS)):
+    _, api, _ = cli("comment", URN, "--file", "-", responses=[({}, {})])
+    assert api.call_args.args[3]["message"]["text"] == LINKS
+
+with patch.object(sys, "stdin", io.StringIO(LINKS)):
+    preview, api, _ = cli("post", "--text", "Update", "--first-comment-file", "-", "--dry-run")
+    assert LINKS in preview
+    api.assert_not_called()
+
+_, api, _ = cli("comment", URN, "--text", "x" * 1250, responses=[({}, {})])
+assert len(api.call_args.args[3]["message"]["text"]) == 1250
+
+_, api, upload = cli("post", "--text", "Update", "--image", __file__, "--first-comment", LINKS,
+                     responses=[({"x-restli-id": URN}, None), ({}, {})])
+upload.assert_called_once()
+assert api.call_args_list[0].args[3]["content"]["media"]["id"] == "urn:li:image:1"
+assert api.call_count == 2
+
+for args in (
+    ("post", "--file", "-", "--first-comment-file", "-"),
+    ("post", "--text", "Update", "--first-comment", "  "),
+    ("post", "--text", "Update", "--first-comment", "x" * 1251),
+    ("comment", URN, "--text", "  "),
+    ("comment", URN, "--text", "x" * 1251),
+    ("comment", "https://www.linkedin.com/in/someone/", "--text", LINKS),
+):
+    with patch.object(sys, "argv", ["linkedin.py", *args]), \
+            patch.object(linkedin, "load_token") as token, patch.object(linkedin, "rest") as api:
+        try:
+            linkedin.main()
+            raise AssertionError("Invalid input accepted")
+        except SystemExit as exc:
+            assert exc.code
+        token.assert_not_called()
+        api.assert_not_called()
+
+for failure in (SystemExit("LinkedIn 403"), SystemExit("Cannot reach LinkedIn"), TimeoutError("timeout")):
+    output = io.StringIO()
+    with patch.object(sys, "argv", ["linkedin.py", "post", "--text", "Update", "--first-comment", LINKS]), \
+            patch.object(linkedin, "load_token", return_value=TOKEN), \
+            patch.object(linkedin, "rest", side_effect=[({"x-restli-id": URN}, None), failure]) as api, \
+            contextlib.redirect_stdout(output):
+        try:
+            linkedin.main()
+            raise AssertionError("Comment failure was hidden")
+        except SystemExit as exc:
+            assert URN in str(exc) and "Do not rerun `post`" in str(exc)
+    assert api.call_count == 2 and f"Published: https://www.linkedin.com/feed/update/{URN}/" in output.getvalue()
+
+for response in (SystemExit("Post failed"), ({}, None)):
+    with patch.object(sys, "argv", ["linkedin.py", "post", "--text", "Update", "--first-comment", LINKS]), \
+            patch.object(linkedin, "load_token", return_value=TOKEN), \
+            patch.object(linkedin, "rest", side_effect=[response]) as api:
+        try:
+            linkedin.main()
+            raise AssertionError("Post failure or missing ID was hidden")
+        except SystemExit:
+            pass
+    assert api.call_count == 1
+
+print("ok: comment previews, payloads, input validation, sequencing, and partial failures")

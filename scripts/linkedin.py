@@ -5,6 +5,7 @@ Commands:
   auth    one-time OAuth consent in the browser (token lasts 60 days)
   status  show the authorized account and token expiry
   post    publish a text post, optionally with one image (--dry-run to preview)
+  comment add a text comment to an existing post
   delete  delete one of your posts by URL or URN
 """
 import argparse
@@ -31,6 +32,7 @@ SCOPES = "openid profile w_member_social"
 # ponytail: pinned; LinkedIn sunsets a version ~12 months after release, bump (or set LINKEDIN_VERSION) by 2027-10
 API_VERSION = os.environ.get("LINKEDIN_VERSION", "202610")
 MAX_CHARS = 3000
+MAX_COMMENT_CHARS = 1250
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif"}
 # little-text reserved chars; unescaped they truncate or break the post. A '#' that starts a word stays a hashtag.
 RESERVED = re.compile(r"[|{}@\[\]()<>\\*_~]|#(?!\w)|(?<=\S)#")
@@ -61,6 +63,28 @@ def build_post(author, text, visibility="PUBLIC", raw=False, image_urn=None, alt
     if image_urn:
         body["content"] = {"media": {"id": image_urn, **({"altText": alt} if alt else {})}}
     return body
+
+
+def build_comment(actor, urn, text):
+    # Comments use plain message.text, not Posts API little-text escaping.
+    return {"actor": actor, "object": urn, "message": {"text": text}}
+
+
+def read_comment(text, file):
+    value = ((sys.stdin.read() if file == "-" else Path(file).read_text())
+             if file is not None else text).strip()
+    if not value:
+        sys.exit("Comment text is empty.")
+    if len(value) > MAX_COMMENT_CHARS:
+        sys.exit(f"Comment is {len(value)} chars; maximum is {MAX_COMMENT_CHARS}.")
+    return value
+
+
+def publish_comment(tok, urn, text):
+    headers, _ = rest("POST", f"socialActions/{urllib.parse.quote(urn, safe='')}/comments",
+                      tok["access_token"], build_comment(tok["person_urn"], urn, text))
+    print(f"Comment published on https://www.linkedin.com/feed/update/{urn}/ "
+          f"(comment ID: {headers.get('x-restli-id', 'not returned')}).")
 
 
 def request(method, url, data=None, headers=None):
@@ -195,6 +219,10 @@ def upload_image(token, owner, path):
 
 
 def cmd_post(args):
+    if args.file == "-" and args.first_comment_file == "-":
+        sys.exit("Post and first comment cannot both read stdin.")
+    comment = (read_comment(args.first_comment, args.first_comment_file)
+               if args.first_comment is not None or args.first_comment_file is not None else None)
     text = (sys.stdin.read() if args.file == "-" else Path(args.file).read_text()) if args.file else args.text
     text = text.strip()
     if not text:
@@ -207,13 +235,40 @@ def cmd_post(args):
     if args.dry_run:
         image = f"<uploaded from {args.image}>" if args.image else None
         print(json.dumps(build_post(tok["person_urn"], text, args.visibility, args.raw, image, args.alt), indent=2))
+        if comment is not None:
+            print("\nFirst comment (after post creation):")
+            print(json.dumps(build_comment(tok["person_urn"], "<created post URN>", comment), indent=2))
         print(f"\n--- DRY RUN: nothing published. {len(text)}/{MAX_CHARS} chars, as {tok['name']}. ---")
         return
     image_urn = upload_image(tok["access_token"], tok["person_urn"], args.image) if args.image else None
     headers, _ = rest("POST", "posts", tok["access_token"],
                       build_post(tok["person_urn"], text, args.visibility, args.raw, image_urn, args.alt))
     urn = headers.get("x-restli-id")
-    print(f"Published: https://www.linkedin.com/feed/update/{urn}/")
+    if not urn or post_urn(urn) != urn:
+        sys.exit("Post creation succeeded but LinkedIn returned no usable post URN. "
+                 "Check your profile before retrying; no first comment was attempted.")
+    print(f"Published: https://www.linkedin.com/feed/update/{urn}/", flush=True)
+    if comment is not None:
+        try:
+            publish_comment(tok, urn, comment)
+        except (SystemExit, OSError, ValueError) as exc:
+            sys.exit(f"Post is already published at https://www.linkedin.com/feed/update/{urn}/, "
+                     f"but the first comment was not confirmed: {exc}\n"
+                     "Do not rerun `post`. Check the post for the comment first; if absent, "
+                     f"use `comment {urn} --file <comment-file>` to add it.")
+
+
+def cmd_comment(args):
+    urn = post_urn(args.post)
+    if not urn:
+        sys.exit(f"No post URN (urn:li:share:N or urn:li:ugcPost:N) in {args.post!r}.")
+    text = read_comment(args.text, args.file)
+    tok = load_token()
+    if args.dry_run:
+        print(json.dumps(build_comment(tok["person_urn"], urn, text), indent=2))
+        print(f"\n--- DRY RUN: nothing published. {len(text)}/{MAX_COMMENT_CHARS} comment chars. ---")
+        return
+    publish_comment(tok, urn, text)
 
 
 def cmd_delete(args):
@@ -235,6 +290,9 @@ def main():
     src = post.add_mutually_exclusive_group(required=True)
     src.add_argument("--text", help="post text")
     src.add_argument("--file", help="file with the post text ('-' for stdin)")
+    first = post.add_mutually_exclusive_group()
+    first.add_argument("--first-comment", help="text comment to publish immediately after the post")
+    first.add_argument("--first-comment-file", help="file with first comment text ('-' for stdin)")
     post.add_argument("--image", help="attach one JPG/PNG/GIF")
     post.add_argument("--alt", help="image alt text")
     post.add_argument("--visibility", choices=["PUBLIC", "CONNECTIONS"], default="PUBLIC")
@@ -242,6 +300,13 @@ def main():
                       help="send text as-is (no escaping), for @[Name](urn:li:...) mentions")
     post.add_argument("--dry-run", action="store_true", help="print the payload, publish nothing")
     post.set_defaults(func=cmd_post)
+    comment = sub.add_parser("comment", help="add a text comment to an existing post")
+    comment.add_argument("post", help="post URL or share/ugcPost URN")
+    comment_src = comment.add_mutually_exclusive_group(required=True)
+    comment_src.add_argument("--text", help="comment text (plain text, including links)")
+    comment_src.add_argument("--file", help="file with comment text ('-' for stdin)")
+    comment.add_argument("--dry-run", action="store_true", help="print the payload, publish nothing")
+    comment.set_defaults(func=cmd_comment)
     delete = sub.add_parser("delete", help="delete one of your posts")
     delete.add_argument("post", help="post URL (linkedin.com/feed/update/...) or URN")
     delete.set_defaults(func=cmd_delete)

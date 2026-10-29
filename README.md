@@ -49,6 +49,7 @@ You can also use the [CLI directly](docs/usage.md#command-line). Its publishing 
 ## Features
 
 - **Text and one image:** hashtags, inline links, and one JPG/PNG/GIF with alt text.
+- **First comments:** publish links in a comment immediately after a post, or add a comment to an existing post.
 - **Visibility:** public or connections-only posts.
 - **Preview and approval:** the skill shows the exact draft and publishes only after explicit approval.
 - **Text escaping:** preserves characters that LinkedIn's text format treats specially.

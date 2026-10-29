@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add `post --first-comment` / `--first-comment-file` and a standalone `comment` command with dry-run previews.
+- Preview and approve post and comment together, preserve plain text links, and report partial success without retrying or duplicating a published post.
+
 ## v1.0 — 2026-10-29
 
 First public release of **Publish to LinkedIn**.
