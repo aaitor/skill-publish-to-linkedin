@@ -17,7 +17,7 @@ $LI post --file post.txt [--image x.png --alt "..."] [--visibility CONNECTIONS]
 $LI post --file post.txt --first-comment-file comment.txt --dry-run
 $LI comment <post URL or URN> --file comment.txt [--dry-run]
 $LI delete <post URL or URN>                # delete one of the member's own posts
-$LI auth                                    # browser consent, needed every 60 days
+$LI auth [--with-comments]                  # comment access requires an approved app
 ```
 
 ## Workflow
@@ -26,6 +26,7 @@ $LI auth                                    # browser consent, needed every 60 d
    - `Not authorized`, `Token expired` or `401`: run `$LI auth` as a long-running or background command. It opens the browser and blocks until the user approves (5 minute limit). Tell the user to approve the consent screen, then wait for the command to exit. If you run in a sandbox that cannot open a browser or write to `~/.config`, ask the user to run that command in their own terminal instead.
    - `Cannot reach LinkedIn`: your sandbox blocks network access. Request approval to run the command with network access, or ask the user to enable it.
    - `Missing LINKEDIN_CLIENT_ID / LINKEDIN_CLIENT_SECRET`: the one-time LinkedIn app setup is not done. Walk the user through `<skill-dir>/docs/installation.md`, sections "Create a LinkedIn app" and "Configuration". Never ask the user to paste the client secret into the chat.
+   - **Before comments:** the versioned Comments API requires an app approved for Community Management and `w_member_social_feed`. Once the app has that permission, run `$LI auth --with-comments`. Default `auth` remains suitable for post-only apps; it does not enable comments. Old tokens need reauthorization to record comment access. See `<skill-dir>/docs/installation.md`, "Comment access".
 2. **Draft:** if the user has a writing-voice or style skill, draft with it. Otherwise follow the user's instructions and keep their wording. Write the final text to a temporary file. Use plain text: LinkedIn does not render Markdown, so `**bold**` shows literally. Use line breaks and plain `#hashtags`.
 3. **Preview:** run `$LI post --file <path> [--image ...] --dry-run`. For links in a first comment, use `--first-comment-file <path>` and include it in the dry run. Show the user the full post text, any comment text, the visibility and the image.
 4. **Approval gate:** publish only after the user explicitly approves *this exact post and any comment text* in the conversation. A scheduled or automated run counts as approved only when the user created it with the verbatim post and comment text. If the text changes after approval, preview and ask again.

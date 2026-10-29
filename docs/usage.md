@@ -40,7 +40,7 @@ $LI delete https://www.linkedin.com/feed/update/urn:li:share:7000000000000000000
 
 | Command | Options | Description |
 |---|---|---|
-| `auth` | | Browser OAuth consent. Saves a 60-day token. |
+| `auth` | `--with-comments` (optional) | Browser OAuth consent. Saves a 60-day token. Opt in to comment scope only for an approved app. |
 | `status` | | Shows the authorized account and token expiry (checks the token live). |
 | `post` | `--text TEXT` or `--file PATH` (`-` reads stdin) | Text of the post. One of the two is required. |
 | | `--first-comment TEXT` or `--first-comment-file PATH` | Add a comment immediately after publishing. File accepts `-` for stdin, unless post text also uses stdin. |
@@ -61,6 +61,8 @@ $LI delete https://www.linkedin.com/feed/update/urn:li:share:7000000000000000000
 - **Links:** put them in the post or use a first comment. The API does not build link-preview cards.
 
 ### First comments and recovery
+
+Comments require approved Community Management access and `auth --with-comments`; see [Comment access](installation.md#comment-access). The CLI checks saved scopes before any live post-with-comment or standalone comment request. Dry runs remain available without comment access.
 
 Use `--first-comment` or `--first-comment-file` to submit a comment immediately after the new post. The dry run previews both requests, and the agent asks you to approve both texts. Other people may comment before this request completes, so first placement is not guaranteed.
 

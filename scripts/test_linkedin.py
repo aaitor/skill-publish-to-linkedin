@@ -41,7 +41,7 @@ import sys
 from unittest.mock import patch
 import linkedin
 
-TOKEN = {"access_token": "test-token", "person_urn": "urn:li:person:test", "name": "Test"}
+TOKEN = {"access_token": "test-token", "person_urn": "urn:li:person:test", "name": "Test", "scope": "openid profile w_member_social w_member_social_feed"}
 URN = "urn:li:share:123"
 LINKS = "Read (more): https://example.com/a_b?q=x&v=2#section"
 
@@ -152,3 +152,63 @@ for response in (SystemExit("Post failed"), ({}, None)):
     assert api.call_count == 1
 
 print("ok: comment previews, payloads, input validation, sequencing, and partial failures")
+
+
+# Missing/legacy comment scopes must fail before image upload or post creation.
+for scope in (None, "openid profile w_member_social"):
+    token = dict(TOKEN)
+    if scope is None:
+        token.pop("scope")
+    else:
+        token["scope"] = scope
+    for argv in (["post", "--text", "Update", "--first-comment", LINKS, "--image", __file__],
+                 ["comment", URN, "--text", LINKS]):
+        with patch.object(sys, "argv", ["linkedin.py", *argv]), \
+                patch.object(linkedin, "load_token", return_value=token), \
+                patch.object(linkedin, "rest") as api, patch.object(linkedin, "upload_image") as upload:
+            try:
+                linkedin.main()
+                raise AssertionError("Missing comment permission was accepted")
+            except SystemExit as exc:
+                assert "auth --with-comments" in str(exc)
+            api.assert_not_called()
+            upload.assert_not_called()
+
+for argv in (["comment", URN, "--file", "/does-not-exist/comment.txt"],
+             ["post", "--text", "Update", "--first-comment-file", "/does-not-exist/comment.txt"],
+             ["post", "--file", "/does-not-exist/post.txt"]):
+    try:
+        cli(*argv)
+        raise AssertionError("Missing file accepted")
+    except SystemExit as exc:
+        assert "Cannot read" in str(exc)
+
+for failure in (TimeoutError("response read timed out"), SystemExit("LinkedIn 403")):
+    try:
+        cli("comment", URN, "--text", LINKS, responses=[failure])
+        raise AssertionError("Uncertain comment result accepted")
+    except SystemExit as exc:
+        assert "Check LinkedIn" in str(exc) and URN in str(exc)
+
+# Authorize without a browser or real credentials; inspect the requested and saved scopes.
+import argparse
+import urllib.parse
+for with_comments in (False, True):
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp) / "config"
+        token_file = directory / "token.json"
+        with patch.object(linkedin, "load_credentials", return_value=("test-id", "test-secret")), \
+                patch.object(linkedin.secrets, "token_urlsafe", return_value="test-state"), \
+                patch.object(linkedin, "wait_for_callback", return_value={"state": "test-state", "code": "test-code"}), \
+                patch.object(linkedin.webbrowser, "open") as browser, \
+                patch.object(linkedin, "request", return_value=({}, {"access_token": "fake", "expires_in": 3600})), \
+                patch.object(linkedin, "userinfo", return_value={"sub": "test", "name": "Test"}), \
+                patch.object(linkedin, "CONFIG_DIR", directory), patch.object(linkedin, "TOKEN_FILE", token_file), \
+                contextlib.redirect_stdout(io.StringIO()):
+            linkedin.cmd_auth(argparse.Namespace(with_comments=with_comments))
+        requested = urllib.parse.parse_qs(urllib.parse.urlparse(browser.call_args.args[0]).query)["scope"][0]
+        assert (linkedin.COMMENT_SCOPE in requested.split()) == with_comments
+        assert json.loads(token_file.read_text())["scope"] == requested
+        assert "w_member_social" in requested.split()
+
+print("ok: opt-in OAuth scopes, publication guard, comment recovery, and missing files")

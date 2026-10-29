@@ -29,6 +29,7 @@ TOKEN_FILE = CONFIG_DIR / "token.json"
 REDIRECT_PORT = 8765
 REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/callback"
 SCOPES = "openid profile w_member_social"
+COMMENT_SCOPE = "w_member_social_feed"
 # ponytail: pinned; LinkedIn sunsets a version ~12 months after release, bump (or set LINKEDIN_VERSION) by 2027-10
 API_VERSION = os.environ.get("LINKEDIN_VERSION", "202610")
 MAX_CHARS = 3000
@@ -71,13 +72,27 @@ def build_comment(actor, urn, text):
 
 
 def read_comment(text, file):
-    value = ((sys.stdin.read() if file == "-" else Path(file).read_text())
-             if file is not None else text).strip()
+    value = read_text(text, file, "Comment")
     if not value:
         sys.exit("Comment text is empty.")
     if len(value) > MAX_COMMENT_CHARS:
         sys.exit(f"Comment is {len(value)} chars; maximum is {MAX_COMMENT_CHARS}.")
     return value
+
+
+def read_text(text, file, label):
+    try:
+        return ((sys.stdin.read() if file == "-" else Path(file).read_text())
+                if file is not None else text).strip()
+    except (OSError, UnicodeError) as exc:
+        sys.exit(f"Cannot read {label.lower()} file {file!r}: {exc}")
+
+
+def require_comment_access(tok):
+    if COMMENT_SCOPE not in tok.get("scope", "").split():
+        sys.exit("Comments require w_member_social_feed and an app approved for Community Management. "
+                 "Once approved, run `auth --with-comments`. No content was published. "
+                 "See docs/installation.md, Comment access.")
 
 
 def publish_comment(tok, urn, text):
@@ -95,6 +110,8 @@ def request(method, url, data=None, headers=None):
             return resp.headers, json.loads(raw) if raw else None
     except urllib.error.HTTPError as e:
         hint = " (token expired or revoked: run `auth`)" if e.code == 401 else ""
+        if e.code == 403 and "/socialActions/" in url and url.endswith("/comments"):
+            hint = " (comments require Community Management access and w_member_social_feed; see docs/installation.md)"
         sys.exit(f"LinkedIn {e.code} on {method} {url}{hint}: {e.read().decode(errors='replace')}")
     except urllib.error.URLError as e:
         sys.exit(f"Cannot reach LinkedIn ({e.reason}). If this runs in an agent sandbox, allow network access.")
@@ -162,15 +179,16 @@ def wait_for_callback(timeout=300):
     return result
 
 
-def cmd_auth(_args):
+def cmd_auth(args):
     client_id, client_secret = load_credentials()
     if not (client_id and client_secret):
         sys.exit(f"Missing LINKEDIN_CLIENT_ID / LINKEDIN_CLIENT_SECRET: put them in {CREDENTIALS_FILE} "
                  "or the environment (see README, Configuration).")
     state = secrets.token_urlsafe(24)
+    scopes = SCOPES + (f" {COMMENT_SCOPE}" if args.with_comments else "")
     url = "https://www.linkedin.com/oauth/v2/authorization?" + urllib.parse.urlencode({
         "response_type": "code", "client_id": client_id,
-        "redirect_uri": REDIRECT_URI, "state": state, "scope": SCOPES,
+        "redirect_uri": REDIRECT_URI, "state": state, "scope": scopes,
     })
     print(f"Authorize in the browser (waiting up to 5 min):\n{url}", flush=True)
     webbrowser.open(url)
@@ -191,6 +209,7 @@ def cmd_auth(_args):
         "expires_at": int(time.time()) + int(token["expires_in"]),
         "person_urn": f"urn:li:person:{me['sub']}",
         "name": me.get("name"),
+        "scope": token.get("scope", scopes),
     }
     CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd = os.open(TOKEN_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -205,6 +224,8 @@ def cmd_status(_args):
     days = (tok["expires_at"] - time.time()) / 86400
     print(f"{me.get('name')} ({tok['person_urn']}): token OK, expires in {days:.0f} days "
           f"({time.ctime(tok['expires_at'])}). API version {API_VERSION}.")
+    print("Comment scope: " + ("authorized" if COMMENT_SCOPE in tok.get("scope", "").split()
+                              else "not recorded; requires Community Management and `auth --with-comments`"))
 
 
 def upload_image(token, owner, path):
@@ -223,8 +244,7 @@ def cmd_post(args):
         sys.exit("Post and first comment cannot both read stdin.")
     comment = (read_comment(args.first_comment, args.first_comment_file)
                if args.first_comment is not None or args.first_comment_file is not None else None)
-    text = (sys.stdin.read() if args.file == "-" else Path(args.file).read_text()) if args.file else args.text
-    text = text.strip()
+    text = read_text(args.text, args.file, "Post")
     if not text:
         sys.exit("Post text is empty.")
     if len(text) > MAX_CHARS:
@@ -240,6 +260,8 @@ def cmd_post(args):
             print(json.dumps(build_comment(tok["person_urn"], "<created post URN>", comment), indent=2))
         print(f"\n--- DRY RUN: nothing published. {len(text)}/{MAX_CHARS} chars, as {tok['name']}. ---")
         return
+    if comment is not None:
+        require_comment_access(tok)
     image_urn = upload_image(tok["access_token"], tok["person_urn"], args.image) if args.image else None
     headers, _ = rest("POST", "posts", tok["access_token"],
                       build_post(tok["person_urn"], text, args.visibility, args.raw, image_urn, args.alt))
@@ -255,7 +277,7 @@ def cmd_post(args):
             sys.exit(f"Post is already published at https://www.linkedin.com/feed/update/{urn}/, "
                      f"but the first comment was not confirmed: {exc}\n"
                      "Do not rerun `post`. Check the post for the comment first; if absent, "
-                     f"use `comment {urn} --file <comment-file>` to add it.")
+                     f"use `comment {urn} --text <same-text>` or `--file <comment-file>` to add it.")
 
 
 def cmd_comment(args):
@@ -268,7 +290,12 @@ def cmd_comment(args):
         print(json.dumps(build_comment(tok["person_urn"], urn, text), indent=2))
         print(f"\n--- DRY RUN: nothing published. {len(text)}/{MAX_COMMENT_CHARS} comment chars. ---")
         return
-    publish_comment(tok, urn, text)
+    require_comment_access(tok)
+    try:
+        publish_comment(tok, urn, text)
+    except (SystemExit, OSError, ValueError) as exc:
+        sys.exit(f"Comment was not confirmed on https://www.linkedin.com/feed/update/{urn}/: {exc}\n"
+                 "Check LinkedIn for the comment before retrying; it may already have been saved.")
 
 
 def cmd_delete(args):
@@ -284,7 +311,10 @@ def cmd_delete(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("auth", help="authorize via browser OAuth").set_defaults(func=cmd_auth)
+    auth = sub.add_parser("auth", help="authorize via browser OAuth")
+    auth.add_argument("--with-comments", action="store_true",
+                      help="also request w_member_social_feed (requires approved Community Management access)")
+    auth.set_defaults(func=cmd_auth)
     sub.add_parser("status", help="show account and token expiry").set_defaults(func=cmd_status)
     post = sub.add_parser("post", help="publish a post")
     src = post.add_mutually_exclusive_group(required=True)
