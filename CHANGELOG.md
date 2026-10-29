@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Simplify the demo to real skill installation and Claude Code invocation, ending at publishing approval, on a black background.
+
 - Replace the README fixture preview with a real recording of the skill instructions, live authorization check, draft, and authorized CLI dry-run; redact the member ID.
 
 - Apply the shared open-source repository format: branded banner, animated offline preview, focused README, and detailed documentation.

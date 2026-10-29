@@ -16,4 +16,4 @@ The approval gate is an agent instruction. Direct CLI publishing commands execut
 
 See [security and privacy](security-and-privacy.md) for storage, scopes, and revocation, and [usage](usage.md) for supported commands and limitations.
 
-The [README recording](../examples/README.md) uses the real skill instructions and unmodified CLI with a saved authorized account. Its status check calls LinkedIn; the preview uses `--dry-run`. A stdout filter redacts the member ID only. This live recording is regenerated manually and is never run in CI.
+The [README recording](../examples/README.md) installs the project skill and invokes it through Claude Code's `-p` mode. Claude reads the skill, checks the real authorization, and runs the unmodified CLI with `--dry-run`. The visible response shows the draft and requests publishing approval. Recording instructions prohibit publishing and showing credentials or member identifiers. The recorder permits the status and dry-run commands, keeps its project configuration isolated, and is never run in CI.

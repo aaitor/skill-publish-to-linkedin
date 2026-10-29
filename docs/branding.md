@@ -47,4 +47,4 @@ Copy the reviewed banner and social SVG/PNG into this skill's `assets/`, update 
 
 ## Terminal demo
 
-The [recording guide](../examples/README.md) documents the real authorized skill workflow, the VHS tape, and member-ID redaction. Its terminal theme is shared with `aaitor/assets`. A separate offline example remains available for readers without credentials and for CI.
+The [recording guide](../examples/README.md) documents skill installation and real Claude Code usage. The VHS tape overrides the shared terminal theme with a pure black background. The recording ends at the publishing approval prompt. A separate offline example remains available for readers without credentials and for CI.

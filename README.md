@@ -20,9 +20,9 @@ An [Agent Skill](https://agentskills.io) for publishing to **your personal Linke
 
 ## Demo
 
-![Real skill workflow: load instructions, check authorization, and preview a draft](assets/terminal-demo.gif)
+![Install the skill and ask Claude Code to preview a LinkedIn message](assets/terminal-demo.gif)
 
-A real recording using this repository's **`SKILL.md` and Aitor's authorized LinkedIn account**: read the skill instructions, check authorization against LinkedIn, inspect a draft, and run the actual CLI preview. The member ID is redacted; no identity or API responses are mocked. It ends with `DRY RUN: nothing published`, before the publishing approval step. Follow the [recording guide](examples/README.md) to reproduce it with your own account.
+Install the skill, invoke **Claude Code** with `/publish-to-linkedin`, and review its draft and publishing approval prompt. This is a real Claude Code session using the installed skill and saved LinkedIn authorization, on a black terminal background. It stops before approval; nothing is published. See the [recording guide](examples/README.md) to reproduce it.
 
 ## Quick start
 
@@ -71,7 +71,7 @@ For a CLI preview after authorization, run from this repository:
 python3 scripts/linkedin.py post --file examples/post.txt --dry-run
 ```
 
-See [examples/](examples/README.md) for the real recording and a separate offline exercise, and [usage](docs/usage.md) for image posts, connections-only visibility, mentions, and deletion.
+See [examples/](examples/README.md) for the Claude Code recording and a separate offline exercise, and [usage](docs/usage.md) for image posts, connections-only visibility, mentions, and deletion.
 
 ## Configuration
 

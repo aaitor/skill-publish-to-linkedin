@@ -1,1 +1,1 @@
-I built a LinkedIn publishing skill (Python, no dependencies). #OpenSource
+I’m open-sourcing my LinkedIn publishing skill. Draft, preview, approve, publish — directly from Claude Code. #OpenSource #AI
