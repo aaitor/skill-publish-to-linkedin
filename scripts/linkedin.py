@@ -214,6 +214,8 @@ def cmd_auth(args):
         "expires_at": int(time.time()) + int(token["expires_in"]),
         "person_urn": f"urn:li:person:{me['sub']}",
         "name": me.get("name"),
+        # LinkedIn returns the granted scope; on the rare omission fall back to what we requested.
+        # Optimistic by design: a wrong pass just yields a cleanly-handled 403, never an orphaned post.
         "scope": token.get("scope", scopes),
     }
     CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
