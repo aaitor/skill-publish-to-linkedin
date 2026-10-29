@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1 — 2026-10-29
+
+- Add `post --first-comment` / `--first-comment-file` and a standalone `comment` command with dry-run previews.
+- Add opt-in `auth --with-comments` for approved Community Management apps; check saved comment scope before publishing a post with a comment.
+- Handle standalone comment timeouts and missing text files with recovery guidance.
+- Preview and approve post and comment together, preserve plain text links, and report partial success without retrying or duplicating a published post.
+
 ## v1.0 — 2026-10-29
 
 First public release of **Publish to LinkedIn**.

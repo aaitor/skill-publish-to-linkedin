@@ -4,7 +4,7 @@
 
 <h1 align="center">Publish to LinkedIn</h1>
 <p align="center">Draft, preview, and publish with your AI agent.</p>
-<p align="center"><a href="https://github.com/aaitor/skill-publish-to-linkedin/releases/tag/v1.0">v1.0 release</a></p>
+<p align="center"><a href="https://github.com/aaitor/skill-publish-to-linkedin/releases/tag/v1.1">v1.1 release</a></p>
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="docs/installation.md">Setup</a> ·
@@ -49,6 +49,7 @@ You can also use the [CLI directly](docs/usage.md#command-line). Its publishing 
 ## Features
 
 - **Text and one image:** hashtags, inline links, and one JPG/PNG/GIF with alt text.
+- **First comments:** publish links in a comment immediately after a post, or add a comment to an existing post. Requires approved Community Management access and [`auth --with-comments`](docs/installation.md#comment-access).
 - **Visibility:** public or connections-only posts.
 - **Preview and approval:** the skill shows the exact draft and publishes only after explicit approval.
 - **Text escaping:** preserves characters that LinkedIn's text format treats specially.

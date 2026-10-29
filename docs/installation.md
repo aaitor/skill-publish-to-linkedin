@@ -31,6 +31,18 @@ In this guide, `<skill-dir>` means the directory you cloned into. To update late
 
 If LinkedIn asks you to verify the app, use the *Verify* button on the **Settings** tab and have a Page admin approve it. If you own the Page, that admin is you.
 
+## Comment access
+
+Comments and first comments require **Community Management API** access and the `w_member_social_feed` OAuth scope, as listed in the official [Comments API permissions](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/comments-api). The self-serve Share on LinkedIn setup above enables posts only. Community Management requires LinkedIn approval; requesting a scope does not grant product access.
+
+After your app is approved and its Auth tab lists `w_member_social_feed`, authorize with:
+
+```bash
+python3 <skill-dir>/scripts/linkedin.py auth --with-comments
+```
+
+This requests the existing post/identity scopes plus `w_member_social_feed`. Default `auth` keeps its original scopes, so it still works for apps without Community Management. Use `auth --with-comments` when renewing a comment-enabled token. The CLI records granted scopes, shows comment scope status in `status`, and refuses live comment workflows before publishing anything if the saved token lacks the comment scope. Tokens saved by older versions need reauthorization. Dry runs still work without the comment scope.
+
 ## Configuration
 
 Store the credentials in `~/.config/linkedin-publisher/credentials.env`, readable only by you:
