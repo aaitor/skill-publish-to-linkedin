@@ -47,4 +47,4 @@ Copy the reviewed banner and social SVG/PNG into this skill's `assets/`, update 
 
 ## Terminal demo
 
-The [example guide](../examples/README.md) documents the credential-free preview and VHS recording. Its terminal theme is shared with `aaitor/assets`; the sample author and post text are deliberately synthetic.
+The [recording guide](../examples/README.md) documents the real authorized skill workflow, the VHS tape, and member-ID redaction. Its terminal theme is shared with `aaitor/assets`. A separate offline example remains available for readers without credentials and for CI.

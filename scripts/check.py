@@ -54,10 +54,15 @@ def main():
             assert 'nothing published' in demo.stdout
         except (IndexError, ValueError, KeyError, AssertionError):
             errors.append('Offline example did not produce the expected dry-run payload.')
+    redacted = subprocess.run([sys.executable, str(ROOT / 'examples/redact.py')],
+                             input='Author urn:li:person:demo_123. Token OK.\n',
+                             capture_output=True, text=True)
+    if redacted.returncode or redacted.stdout != 'Author urn:li:person:[redacted]. Token OK.\n':
+        errors.append('Demo output filter failed to redact only the member ID.')
     if errors:
         print('\n'.join(errors), file=sys.stderr)
         raise SystemExit(1)
-    print('OK: documentation links/headings, SVGs, and real CLI dry-run with sample identity and blocked network.')
+    print('OK: documentation links/headings, SVGs, offline CLI example, and demo ID redaction.')
 
 
 if __name__ == '__main__':

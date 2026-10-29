@@ -20,9 +20,9 @@ An [Agent Skill](https://agentskills.io) for publishing to **your personal Linke
 
 ## Demo
 
-![Offline terminal demo: preview a sample post payload without publishing](assets/terminal-demo.gif)
+![Real skill workflow: load instructions, check authorization, and preview a draft](assets/terminal-demo.gif)
 
-The demo runs the real CLI dry-run using a **sample identity with network access blocked**. It shows escaped post text and the outgoing payload, then confirms `DRY RUN: nothing published`. No authorization or publishing occurs. Follow the [reproducible example](examples/README.md) for the command, sample text, and recording source.
+A real recording using this repository's **`SKILL.md` and Aitor's authorized LinkedIn account**: read the skill instructions, check authorization against LinkedIn, inspect a draft, and run the actual CLI preview. The member ID is redacted; no identity or API responses are mocked. It ends with `DRY RUN: nothing published`, before the publishing approval step. Follow the [recording guide](examples/README.md) to reproduce it with your own account.
 
 ## Quick start
 
@@ -43,7 +43,7 @@ To publish with your own identity:
 3. Run `python3 <skill-dir>/scripts/linkedin.py auth` and approve browser consent.
 4. Ask your agent to draft a post. Review the exact text and image, then approve publishing.
 
-You can also use the [CLI directly](docs/usage.md#command-line). Its publishing commands execute immediately; use `--dry-run` when you want a preview. Normal CLI dry runs need your saved author token. The offline example is the credential-free alternative.
+You can also use the [CLI directly](docs/usage.md#command-line). Its publishing commands execute immediately; use `--dry-run` when you want a preview. Normal CLI dry runs need your saved author token. The offline example is a separate credential-free exercise; the demo above uses a real authorized account.
 
 ## Features
 
@@ -71,7 +71,7 @@ For a CLI preview after authorization, run from this repository:
 python3 scripts/linkedin.py post --file examples/post.txt --dry-run
 ```
 
-See [examples/](examples/README.md) for the offline demo and [usage](docs/usage.md) for image posts, connections-only visibility, mentions, and deletion.
+See [examples/](examples/README.md) for the real recording and a separate offline exercise, and [usage](docs/usage.md) for image posts, connections-only visibility, mentions, and deletion.
 
 ## Configuration
 
