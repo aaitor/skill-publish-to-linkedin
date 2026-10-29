@@ -212,3 +212,14 @@ for with_comments in (False, True):
         assert "w_member_social" in requested.split()
 
 print("ok: opt-in OAuth scopes, publication guard, comment recovery, and missing files")
+
+
+for scope in ("openid profile w_member_social w_member_social_feed",
+              "openid,profile,w_member_social,w_member_social_feed",
+              "openid%20profile%20w_member_social%20w_member_social_feed",
+              "openid+profile+w_member_social+w_member_social_feed"):
+    token = {**TOKEN, "scope": scope}
+    linkedin.require_comment_access(token)
+    assert linkedin.COMMENT_SCOPE in linkedin.token_scopes(token)
+
+print("ok: space/comma/URL-encoded OAuth scope formats")

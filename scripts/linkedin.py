@@ -88,8 +88,13 @@ def read_text(text, file, label):
         sys.exit(f"Cannot read {label.lower()} file {file!r}: {exc}")
 
 
+def token_scopes(tok):
+    # LinkedIn documents URL-encoded spaces; older token responses also used commas.
+    return set(re.split(r"[\s,]+", urllib.parse.unquote_plus(tok.get("scope", ""))))
+
+
 def require_comment_access(tok):
-    if COMMENT_SCOPE not in tok.get("scope", "").split():
+    if COMMENT_SCOPE not in token_scopes(tok):
         sys.exit("Comments require w_member_social_feed and an app approved for Community Management. "
                  "Once approved, run `auth --with-comments`. No content was published. "
                  "See docs/installation.md, Comment access.")
@@ -224,7 +229,7 @@ def cmd_status(_args):
     days = (tok["expires_at"] - time.time()) / 86400
     print(f"{me.get('name')} ({tok['person_urn']}): token OK, expires in {days:.0f} days "
           f"({time.ctime(tok['expires_at'])}). API version {API_VERSION}.")
-    print("Comment scope: " + ("authorized" if COMMENT_SCOPE in tok.get("scope", "").split()
+    print("Comment scope: " + ("authorized" if COMMENT_SCOPE in token_scopes(tok)
                               else "not recorded; requires Community Management and `auth --with-comments`"))
 
 
