@@ -68,7 +68,7 @@ Use `--first-comment` or `--first-comment-file` to submit a comment immediately 
 
 Comments use plain text, preserve URL punctuation without post escaping, and are limited by this CLI to 1250 characters. The `comment` command can also target an existing post; it does not read the post or verify ownership.
 
-Post creation and comment creation are separate requests. If the comment fails, the CLI exits with an error and preserves the published post URL. Do not rerun `post`, which would create a duplicate. Check LinkedIn for the comment first (a timeout may occur after it was saved), then use `comment <post URL> --file links.txt` only if it is absent. There are no automatic retries. See [troubleshooting](troubleshooting.md) for comment permission errors.
+Post creation and comment creation are separate requests. If the comment fails, the CLI exits with an error and preserves the published post URL. Do not rerun `post`, which would create a duplicate. Check LinkedIn for the comment first (a timeout may occur after it was saved), then use `comment <post URL> --text "<same text>"` (or `--file links.txt`) only if it is absent. There are no automatic retries. See [troubleshooting](troubleshooting.md) for comment permission errors.
 
 ## Limitations
 
