@@ -1,2 +1,11 @@
 __pycache__/
 *.pyc
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+credentials.env
+token.json
+.venv/
+.DS_Store

@@ -1,0 +1,14 @@
+{
+  "template": {
+    "repository": "https://github.com/aaitor/oss-repo-template",
+    "revision": "13d0a3d1a46c9cdf057b6f038f5c790d1a3442e5"
+  },
+  "repository": "https://github.com/aaitor/assets",
+  "revision": "26be4ac7da293f2afd2252f5370359e7a4e82b1d",
+  "files": {
+    "assets/hero.svg": "banners/skill-publish-to-linkedin.svg",
+    "assets/social-preview.svg": "social/skill-publish-to-linkedin.svg",
+    "assets/social-preview.png": "social/skill-publish-to-linkedin.png",
+    "examples/theme.tape": "terminal/theme.tape"
+  }
+}
