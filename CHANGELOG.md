@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## v1.0 — 2026-10-29
 
-- Simplify the demo to real skill installation and Claude Code invocation, ending at publishing approval, on a black background.
+First public release of **Publish to LinkedIn**.
 
-- Replace the README fixture preview with a real recording of the skill instructions, live authorization check, draft, and authorized CLI dry-run; redact the member ID.
-
-- Apply the shared open-source repository format: branded banner, animated offline preview, focused README, and detailed documentation.
-- Add community guidelines, issue forms, private security reporting, and offline CI checks.
-- Preserve the existing MIT license, CLI behavior, and exact-content publishing approval workflow.
+- Publish text or one image to your own personal LinkedIn profile, with public or connections-only visibility.
+- Local authorization, own-account post deletion, and a Python standard-library CLI with no runtime packages.
+- Skill workflow for drafting, dry-run preview, and explicit approval of the exact content before publishing.
+- A real black-background Claude Code install/use demo that stops at approval without posting.
+- A separate credential-free offline preview exercise.
+- Setup, authorization, usage, security, and troubleshooting guides; shared artwork, community files, and the existing MIT license.
